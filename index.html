@@ -600,8 +600,8 @@ function drawScene(ts) {
     const redCx  = redX  + CART_W / 2;
     drawVelocityLabel(blueCx, trackY, blueV, '#4a9eff');
     drawVelocityLabel(redCx,  trackY, redV,  '#ff5a5a');
-    drawArrow(blueCx, trackY - 22, blueV, '#4a9eff');
-    drawArrow(redCx,  trackY - 22, redV,  '#ff5a5a');
+    drawArrow(blueCx, trackY - 38, blueV, '#4a9eff');
+    drawArrow(redCx,  trackY - 38, redV,  '#ff5a5a');
   }
 }
 
@@ -637,11 +637,11 @@ function drawSpring(blueX, redX, trackY) {
 
 function drawVelocityLabel(cx, cartTopY, vel, color) {
   ctx.fillStyle = color;
-  ctx.font = 'bold 10px Space Mono, monospace';
+  ctx.font = 'bold 20px Space Mono, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   const speed = Math.abs(vel).toFixed(2);
-  ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0 m/s', cx, cartTopY - 8);
+  ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0 m/s', cx, cartTopY - 10);
 }
 
 function drawCart(x, trackY, fill, dark) {
