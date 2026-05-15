@@ -553,13 +553,14 @@ let explodedOnce = false;
 
 const CART_W = 56, CART_H = 28;
 const WHEEL_R = 7;
+const SPRING_MIN_DRAW = 14; // minimum px width when carts touch (compressed spring)
 const TRACK_Y_FRAC = 0.72;
 const MU = 0.07; // friction coefficient (deceleration in m/s per second when on)
 
 function resetCarts() {
   const cw = CW();
-  blueX = cw / 2 - CART_W / 2 - 2;
-  redX  = cw / 2 + 2;
+  blueX = (cw - 2 * CART_W) / 2;
+  redX  = blueX + CART_W;
   blueV = 0; redV = 0;
   state = 'idle';
   animStart = null;
@@ -587,36 +588,47 @@ function drawScene(ts) {
     ctx.fillRect(x, trackY + CART_H + 5, 1, 6);
   }
 
-  // Spring between carts (only in idle)
-  if (state === 'idle') {
-    const springX1 = blueX + CART_W;
-    const springX2 = redX;
-    const springY  = trackY + CART_H / 2;
-    const coils    = 7;
-    const coilW    = (springX2 - springX1) / coils;
-    const amp      = 4;
-    ctx.beginPath();
-    ctx.moveTo(springX1, springY);
-    for (let i = 0; i <= coils * 4; i++) {
-      const t  = i / (coils * 4);
-      const sx = springX1 + t * (springX2 - springX1);
-      const sy = springY + Math.sin(i * Math.PI / 2) * (i % 2 === 0 ? 0 : amp);
-      i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
-    }
-    ctx.lineTo(springX2, springY);
-    ctx.strokeStyle = '#ffd166aa';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-
   drawCart(blueX, trackY, '#4a9eff', '#1a3a6b', '←', blueV);
   drawCart(redX,  trackY, '#ff5a5a', '#6b1a1a', '→', redV);
+
+  // Spring between carts (idle only; compressed coil when carts touch)
+  if (state === 'idle') drawSpring(blueX, redX, trackY);
 
   // Velocity arrows after explosion
   if (state !== 'idle') {
     drawArrow(blueX + CART_W / 2, trackY - 8, blueV, '#4a9eff');
     drawArrow(redX  + CART_W / 2, trackY - 8, redV,  '#ff5a5a');
   }
+}
+
+function drawSpring(blueX, redX, trackY) {
+  const springX1 = blueX + CART_W;
+  const springX2 = redX;
+  const gap = springX2 - springX1;
+  let drawX1, drawX2;
+  if (gap < SPRING_MIN_DRAW) {
+    const mid = (springX1 + springX2) / 2;
+    drawX1 = mid - SPRING_MIN_DRAW / 2;
+    drawX2 = mid + SPRING_MIN_DRAW / 2;
+  } else {
+    drawX1 = springX1;
+    drawX2 = springX2;
+  }
+  const springY = trackY + CART_H / 2;
+  const coils = 7;
+  const amp = 4;
+  ctx.beginPath();
+  ctx.moveTo(drawX1, springY);
+  for (let i = 0; i <= coils * 4; i++) {
+    const t  = i / (coils * 4);
+    const sx = drawX1 + t * (drawX2 - drawX1);
+    const sy = springY + Math.sin(i * Math.PI / 2) * (i % 2 === 0 ? 0 : amp);
+    i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+  }
+  ctx.lineTo(drawX2, springY);
+  ctx.strokeStyle = '#ffd166aa';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
 function drawCart(x, trackY, fill, dark, arrow, vel) {
