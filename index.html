@@ -588,16 +588,20 @@ function drawScene(ts) {
     ctx.fillRect(x, trackY + CART_H + 5, 1, 6);
   }
 
-  drawCart(blueX, trackY, '#4a9eff', '#1a3a6b', '←', blueV);
-  drawCart(redX,  trackY, '#ff5a5a', '#6b1a1a', '→', redV);
+  drawCart(blueX, trackY, '#4a9eff', '#1a3a6b');
+  drawCart(redX,  trackY, '#ff5a5a', '#6b1a1a');
 
   // Spring between carts (idle only; compressed coil when carts touch)
   if (state === 'idle') drawSpring(blueX, redX, trackY);
 
-  // Velocity arrows after explosion
+  // Velocity labels and arrows above carts (follow cart position each frame)
   if (state !== 'idle') {
-    drawArrow(blueX + CART_W / 2, trackY - 8, blueV, '#4a9eff');
-    drawArrow(redX  + CART_W / 2, trackY - 8, redV,  '#ff5a5a');
+    const blueCx = blueX + CART_W / 2;
+    const redCx  = redX  + CART_W / 2;
+    drawVelocityLabel(blueCx, trackY, blueV, '#4a9eff');
+    drawVelocityLabel(redCx,  trackY, redV,  '#ff5a5a');
+    drawArrow(blueCx, trackY - 22, blueV, '#4a9eff');
+    drawArrow(redCx,  trackY - 22, redV,  '#ff5a5a');
   }
 }
 
@@ -631,7 +635,16 @@ function drawSpring(blueX, redX, trackY) {
   ctx.stroke();
 }
 
-function drawCart(x, trackY, fill, dark, arrow, vel) {
+function drawVelocityLabel(cx, cartTopY, vel, color) {
+  ctx.fillStyle = color;
+  ctx.font = 'bold 10px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  const speed = Math.abs(vel).toFixed(2);
+  ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0 m/s', cx, cartTopY - 8);
+}
+
+function drawCart(x, trackY, fill, dark) {
   const y = trackY;
   const r = 5;
 
@@ -671,13 +684,6 @@ function drawCart(x, trackY, fill, dark, arrow, vel) {
     ctx.fillStyle = fill;
     ctx.fill();
   }
-
-  // Speed badge
-  ctx.fillStyle = fill;
-  ctx.font = 'bold 10px Space Mono, monospace';
-  ctx.textAlign = 'center';
-  const speed = Math.abs(vel).toFixed(2);
-  ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0', x + CART_W / 2, y + CART_H / 2 + 4);
 }
 
 function drawArrow(cx, y, vel, color) {
