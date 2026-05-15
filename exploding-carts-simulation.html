@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exploding Carts — Conservation of Momentum</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #181c27;
+    --panel2: #1e2333;
+    --border: #2a3050;
+    --blue: #4a9eff;
+    --blue-dim: #1a3a6b;
+    --red: #ff5a5a;
+    --red-dim: #6b1a1a;
+    --gold: #ffd166;
+    --green: #06d6a0;
+    --text: #e8eaf6;
+    --muted: #7880a0;
+    --track: #2a3050;
+    --track-surface: #1a2040;
+    --spring: #ffd166;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem;
+    color: var(--gold);
+    letter-spacing: 0.04em;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+  }
+
+  .sim-wrapper {
+    width: 100%;
+    max-width: 820px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── CANVAS PANEL ── */
+  .canvas-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 20px 12px;
+    position: relative;
+  }
+
+  #simCanvas {
+    display: block;
+    width: 100%;
+    height: 160px;
+    border-radius: 8px;
+    background: var(--track-surface);
+    border: 1px solid var(--border);
+  }
+
+  /* ── READOUTS ── */
+  .readouts {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: stretch;
+  }
+
+  .cart-readout {
+    background: var(--panel2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+  }
+
+  .cart-readout.blue { border-left: 3px solid var(--blue); }
+  .cart-readout.red  { border-left: 3px solid var(--red); }
+
+  .cart-readout .cart-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .cart-readout.blue .cart-label { color: var(--blue); }
+  .cart-readout.red  .cart-label { color: var(--red); }
+
+  .readout-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .readout-row .val {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+
+  .momentum-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: var(--panel2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    min-width: 130px;
+  }
+
+  .momentum-center .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .momentum-center .total-p {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .momentum-center .total-p.conserved { color: var(--green); }
+  .momentum-center .total-p.not-conserved { color: var(--red); }
+
+  .momentum-center .conservation-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .conservation-badge.conserved { background: #06d6a020; color: var(--green); border: 1px solid var(--green); }
+  .conservation-badge.pending   { background: #ffd16620; color: var(--gold);  border: 1px solid var(--gold); }
+
+  /* ── CONTROLS ── */
+  .controls-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .control-group.blue-group input[type=range] {
+    background: linear-gradient(to right, var(--blue) var(--pct, 50%), var(--track) var(--pct, 50%));
+  }
+  .control-group.red-group input[type=range] {
+    background: linear-gradient(to right, var(--red) var(--pct, 50%), var(--track) var(--pct, 50%));
+  }
+  .control-group.impulse-group input[type=range] {
+    background: linear-gradient(to right, var(--gold) var(--pct, 50%), var(--track) var(--pct, 50%));
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  .blue-group input[type=range]::-webkit-slider-thumb  { background: var(--blue); }
+  .red-group  input[type=range]::-webkit-slider-thumb  { background: var(--red); }
+  .impulse-group input[type=range]::-webkit-slider-thumb { background: var(--gold); }
+
+  .slider-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    min-width: 52px;
+    text-align: right;
+  }
+  .blue-group  .slider-val { color: var(--blue); }
+  .red-group   .slider-val { color: var(--red); }
+  .impulse-group .slider-val { color: var(--gold); }
+
+  .controls-bottom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 10px 22px;
+    transition: all 0.15s;
+    font-weight: 700;
+  }
+
+  .btn-explode {
+    background: var(--gold);
+    color: #0f1117;
+    text-transform: uppercase;
+    flex: 1;
+  }
+  .btn-explode:hover { background: #ffe080; transform: translateY(-1px); }
+  .btn-explode:active { transform: translateY(0); }
+  .btn-explode:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-reset {
+    background: var(--panel2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  .btn-reset:hover { color: var(--text); border-color: var(--muted); }
+
+  .friction-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    margin-left: auto;
+  }
+
+  .toggle-switch {
+    width: 32px; height: 18px;
+    background: var(--border);
+    border-radius: 9px;
+    position: relative;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .toggle-switch.on { background: var(--green); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle-switch.on::after { transform: translateX(14px); }
+
+  /* ── DATA TABLE ── */
+  .data-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+
+  .data-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .data-header h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .btn-clear-data {
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    transition: all 0.15s;
+  }
+  .btn-clear-data:hover { border-color: var(--red); color: var(--red); }
+
+  .data-table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  thead th {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th:first-child { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid #1e2333;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: var(--panel2); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 7px 10px;
+    text-align: right;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+  }
+  tbody td:first-child { text-align: center; color: var(--muted); }
+
+  td.blue-val { color: var(--blue); }
+  td.red-val  { color: var(--red); }
+  td.gold-val { color: var(--gold); }
+  td.green-val { color: var(--green); }
+  td.check { color: var(--green); font-size: 1rem; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 20px;
+    font-style: italic;
+  }
+
+  /* ── EQUATION HINT ── */
+  .eq-hint {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .eq-hint .eq {
+    font-family: 'Space Mono', monospace;
+    color: var(--text);
+    font-size: 0.85rem;
+  }
+
+  /* flash animation for new row */
+  @keyframes rowFlash {
+    0%   { background: #ffd16622; }
+    100% { background: transparent; }
+  }
+  .row-new { animation: rowFlash 1.2s ease-out forwards; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💥 Exploding Carts</h1>
+  <p>Conservation of Momentum — Real-Time Physics</p>
+</header>
+
+<div class="sim-wrapper">
+
+  <!-- CANVAS -->
+  <div class="canvas-panel">
+    <canvas id="simCanvas"></canvas>
+
+    <div class="readouts">
+      <div class="cart-readout blue">
+        <div class="cart-label">🔵 Blue Cart</div>
+        <div class="readout-row"><span>Mass</span><span class="val" id="rd-blue-mass">—</span></div>
+        <div class="readout-row"><span>Velocity</span><span class="val" id="rd-blue-vel">—</span></div>
+        <div class="readout-row"><span>Momentum</span><span class="val" id="rd-blue-p">—</span></div>
+      </div>
+
+      <div class="momentum-center">
+        <div class="label">Total p</div>
+        <div class="total-p pending" id="rd-total-p">0.00</div>
+        <div class="conservation-badge pending" id="rd-badge">BEFORE</div>
+      </div>
+
+      <div class="cart-readout red">
+        <div class="cart-label">🔴 Red Cart</div>
+        <div class="readout-row"><span>Mass</span><span class="val" id="rd-red-mass">—</span></div>
+        <div class="readout-row"><span>Velocity</span><span class="val" id="rd-red-vel">—</span></div>
+        <div class="readout-row"><span>Momentum</span><span class="val" id="rd-red-p">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-panel">
+    <div class="controls-grid">
+      <div class="control-group blue-group">
+        <label>Blue Cart Mass</label>
+        <div class="slider-row">
+          <input type="range" id="sl-blue-mass" min="0.1" max="5.0" step="0.1" value="1.0">
+          <span class="slider-val" id="lbl-blue-mass">1.0 kg</span>
+        </div>
+      </div>
+      <div class="control-group red-group">
+        <label>Red Cart Mass</label>
+        <div class="slider-row">
+          <input type="range" id="sl-red-mass" min="0.1" max="5.0" step="0.1" value="1.0">
+          <span class="slider-val" id="lbl-red-mass">1.0 kg</span>
+        </div>
+      </div>
+      <div class="control-group impulse-group" style="grid-column: 1 / -1;">
+        <label>Spring Impulse (kg·m/s) — energy stored in spring</label>
+        <div class="slider-row">
+          <input type="range" id="sl-impulse" min="0.05" max="1.0" step="0.05" value="0.30">
+          <span class="slider-val" id="lbl-impulse">0.30 kg·m/s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-bottom">
+      <button class="btn btn-explode" id="btn-explode">▶ EXPLODE</button>
+      <button class="btn btn-reset" id="btn-reset">↺ RESET</button>
+      <label class="friction-toggle" id="friction-label">
+        <div class="toggle-switch" id="friction-toggle"></div>
+        <span>Friction</span>
+      </label>
+    </div>
+
+    <div class="eq-hint">
+      <span>Physics:</span>
+      <span class="eq">p_total = m₁v₁ + m₂v₂ = 0</span>
+      <span style="margin-left:auto">→</span>
+      <span class="eq">v₁ = −J/m₁ &nbsp;&nbsp; v₂ = +J/m₂</span>
+    </div>
+  </div>
+
+  <!-- DATA TABLE -->
+  <div class="data-panel">
+    <div class="data-header">
+      <h2>📊 Trial Data</h2>
+      <button class="btn-clear-data" id="btn-clear">Clear</button>
+    </div>
+    <div class="data-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>m₁ (kg)</th>
+            <th>m₂ (kg)</th>
+            <th>J (kg·m/s)</th>
+            <th>v₁ (m/s)</th>
+            <th>v₂ (m/s)</th>
+            <th>p₁ (kg·m/s)</th>
+            <th>p₂ (kg·m/s)</th>
+            <th>p_total</th>
+            <th>✓</th>
+          </tr>
+        </thead>
+        <tbody id="data-tbody">
+          <tr><td colspan="10" class="empty-state">Run a trial to record data.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── CANVAS SETUP ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); drawScene(); });
+
+const CW = () => canvas.getBoundingClientRect().width;
+const CH = () => canvas.getBoundingClientRect().height;
+
+// ── PHYSICS STATE ─────────────────────────────────────────────────────────────
+let state = 'idle'; // idle | exploding | done
+let blueMass = 1.0, redMass = 1.0, impulse = 0.30;
+let friction = false;
+let blueX, redX, blueV, redV;
+let animStart = null;
+let trialCount = 0;
+let lastBlueV = 0, lastRedV = 0; // post-explosion for data table
+let explodedOnce = false;
+
+const CART_W = 56, CART_H = 28;
+const WHEEL_R = 7;
+const TRACK_Y_FRAC = 0.72;
+const MU = 0.07; // friction coefficient (deceleration in m/s per second when on)
+
+function resetCarts() {
+  const cw = CW();
+  blueX = cw / 2 - CART_W / 2 - 2;
+  redX  = cw / 2 + 2;
+  blueV = 0; redV = 0;
+  state = 'idle';
+  animStart = null;
+  explodedOnce = false;
+  updateReadouts(false);
+  drawScene();
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+function drawScene(ts) {
+  const cw = CW(), ch = CH();
+  ctx.clearRect(0, 0, cw, ch);
+
+  const trackY = ch * TRACK_Y_FRAC;
+
+  // Track
+  ctx.fillStyle = '#1a2040';
+  ctx.fillRect(0, trackY + CART_H - 1, cw, 2);
+  ctx.fillStyle = '#2a3050';
+  ctx.fillRect(0, trackY + CART_H + 1, cw, 4);
+
+  // Tick marks
+  ctx.fillStyle = '#2a3050';
+  for (let x = 40; x < cw - 40; x += 40) {
+    ctx.fillRect(x, trackY + CART_H + 5, 1, 6);
+  }
+
+  // Spring between carts (only in idle)
+  if (state === 'idle') {
+    const springX1 = blueX + CART_W;
+    const springX2 = redX;
+    const springY  = trackY + CART_H / 2;
+    const coils    = 7;
+    const coilW    = (springX2 - springX1) / coils;
+    const amp      = 4;
+    ctx.beginPath();
+    ctx.moveTo(springX1, springY);
+    for (let i = 0; i <= coils * 4; i++) {
+      const t  = i / (coils * 4);
+      const sx = springX1 + t * (springX2 - springX1);
+      const sy = springY + Math.sin(i * Math.PI / 2) * (i % 2 === 0 ? 0 : amp);
+      i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    }
+    ctx.lineTo(springX2, springY);
+    ctx.strokeStyle = '#ffd166aa';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  drawCart(blueX, trackY, '#4a9eff', '#1a3a6b', '←', blueV);
+  drawCart(redX,  trackY, '#ff5a5a', '#6b1a1a', '→', redV);
+
+  // Velocity arrows after explosion
+  if (state !== 'idle') {
+    drawArrow(blueX + CART_W / 2, trackY - 8, blueV, '#4a9eff');
+    drawArrow(redX  + CART_W / 2, trackY - 8, redV,  '#ff5a5a');
+  }
+}
+
+function drawCart(x, trackY, fill, dark, arrow, vel) {
+  const y = trackY;
+  const r = 5;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x + CART_W / 2, y + CART_H + WHEEL_R + 2, CART_W * 0.4, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.beginPath();
+  ctx.roundRect(x, y, CART_W, CART_H, r);
+  ctx.fillStyle = dark;
+  ctx.fill();
+  ctx.strokeStyle = fill;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Top stripe
+  ctx.beginPath();
+  ctx.roundRect(x + 3, y + 3, CART_W - 6, 7, 2);
+  ctx.fillStyle = fill + '55';
+  ctx.fill();
+
+  // Wheels
+  for (const wx of [x + 10, x + CART_W - 10]) {
+    ctx.beginPath();
+    ctx.arc(wx, y + CART_H + WHEEL_R, WHEEL_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+    ctx.strokeStyle = fill;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Hub
+    ctx.beginPath();
+    ctx.arc(wx, y + CART_H + WHEEL_R, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+
+  // Speed badge
+  ctx.fillStyle = fill;
+  ctx.font = 'bold 10px Space Mono, monospace';
+  ctx.textAlign = 'center';
+  const speed = Math.abs(vel).toFixed(2);
+  ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0', x + CART_W / 2, y + CART_H / 2 + 4);
+}
+
+function drawArrow(cx, y, vel, color) {
+  if (Math.abs(vel) < 0.001) return;
+  const len = Math.min(Math.abs(vel) * 60, 80);
+  const dir = vel < 0 ? -1 : 1;
+  ctx.beginPath();
+  ctx.moveTo(cx, y);
+  ctx.lineTo(cx + dir * len, y);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(cx + dir * len, y);
+  ctx.lineTo(cx + dir * (len - 7), y - 5);
+  ctx.lineTo(cx + dir * (len - 7), y + 5);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+// ── ANIMATION LOOP ────────────────────────────────────────────────────────────
+let lastTs = null;
+
+function animate(ts) {
+  if (!animStart) animStart = ts;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0;
+  lastTs = ts;
+
+  if (state === 'exploding') {
+    // Apply friction if enabled
+    if (friction) {
+      const fric = MU * 9.8; // deceleration m/s²
+      if (blueV < 0) blueV = Math.min(0, blueV + fric * dt);
+      else if (blueV > 0) blueV = Math.max(0, blueV - fric * dt);
+
+      if (redV < 0) redV = Math.min(0, redV + fric * dt);
+      else if (redV > 0) redV = Math.max(0, redV - fric * dt);
+    }
+
+    // Update positions (scale: 1 m/s → ~120 px/s visually)
+    const scale = 120;
+    blueX += blueV * dt * scale;
+    redX  += redV * dt * scale;
+
+    const cw = CW();
+    const offscreen = (blueX + CART_W < 0) && (redX > cw);
+    const stopped = friction && Math.abs(blueV) < 0.0001 && Math.abs(redV) < 0.0001;
+
+    if (offscreen || stopped) {
+      state = 'done';
+      recordTrial();
+    }
+
+    updateReadouts(true);
+    drawScene(ts);
+
+    if (state === 'exploding') requestAnimationFrame(animate);
+  }
+}
+
+// ── PHYSICS CALCULATION ───────────────────────────────────────────────────────
+function doExplode() {
+  if (state === 'exploding') return;
+  // J = impulse magnitude
+  // v₁ = -J/m₁  (blue goes left)
+  // v₂ = +J/m₂  (red goes right)
+  blueV = -(impulse / blueMass);
+  redV  =  (impulse / redMass);
+  lastBlueV = blueV;
+  lastRedV  = redV;
+  state = 'exploding';
+  explodedOnce = true;
+  lastTs = null;
+  requestAnimationFrame(animate);
+  document.getElementById('btn-explode').disabled = true;
+}
+
+// ── READOUTS ──────────────────────────────────────────────────────────────────
+function updateReadouts(running) {
+  document.getElementById('rd-blue-mass').textContent = blueMass.toFixed(1) + ' kg';
+  document.getElementById('rd-red-mass').textContent  = redMass.toFixed(1)  + ' kg';
+
+  if (!explodedOnce) {
+    document.getElementById('rd-blue-vel').textContent = '0.00 m/s';
+    document.getElementById('rd-red-vel').textContent  = '0.00 m/s';
+    document.getElementById('rd-blue-p').textContent   = '0.00';
+    document.getElementById('rd-red-p').textContent    = '0.00';
+    document.getElementById('rd-total-p').textContent  = '0.00';
+    document.getElementById('rd-total-p').className    = 'total-p pending';
+    document.getElementById('rd-badge').textContent    = 'BEFORE';
+    document.getElementById('rd-badge').className      = 'conservation-badge pending';
+    return;
+  }
+
+  const p1 = blueMass * blueV;
+  const p2 = redMass  * redV;
+  const pt = p1 + p2;
+
+  document.getElementById('rd-blue-vel').textContent = blueV.toFixed(3) + ' m/s';
+  document.getElementById('rd-red-vel').textContent  = redV.toFixed(3)  + ' m/s';
+  document.getElementById('rd-blue-p').textContent   = p1.toFixed(3) + ' kg·m/s';
+  document.getElementById('rd-red-p').textContent    = p2.toFixed(3) + ' kg·m/s';
+  document.getElementById('rd-total-p').textContent  = pt.toFixed(3) + ' kg·m/s';
+
+  const conserved = Math.abs(pt) < 0.001;
+  document.getElementById('rd-total-p').className = 'total-p ' + (conserved ? 'conserved' : 'not-conserved');
+  document.getElementById('rd-badge').textContent   = conserved ? 'CONSERVED ✓' : 'Σp = ' + pt.toFixed(3);
+  document.getElementById('rd-badge').className     = 'conservation-badge ' + (conserved ? 'conserved' : 'pending');
+}
+
+// ── DATA TABLE ────────────────────────────────────────────────────────────────
+let trials = [];
+
+function recordTrial() {
+  trialCount++;
+  const v1 = lastBlueV, v2 = lastRedV;
+  const p1 = blueMass * v1, p2 = redMass * v2;
+  const pt = p1 + p2;
+  trials.push({ n: trialCount, m1: blueMass, m2: redMass, J: impulse, v1, v2, p1, p2, pt });
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('data-tbody');
+  if (trials.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Run a trial to record data.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = trials.map((t, i) => {
+    const check = Math.abs(t.pt) < 0.001 ? '✓' : '~';
+    const isNew  = i === trials.length - 1 ? 'row-new' : '';
+    return `<tr class="${isNew}">
+      <td>${t.n}</td>
+      <td class="blue-val">${t.m1.toFixed(1)}</td>
+      <td class="red-val">${t.m2.toFixed(1)}</td>
+      <td class="gold-val">${t.J.toFixed(2)}</td>
+      <td class="blue-val">${t.v1.toFixed(3)}</td>
+      <td class="red-val">${t.v2.toFixed(3)}</td>
+      <td class="blue-val">${t.p1.toFixed(3)}</td>
+      <td class="red-val">${t.p2.toFixed(3)}</td>
+      <td class="${Math.abs(t.pt)<0.001?'green-val':'gold-val'}">${t.pt.toFixed(4)}</td>
+      <td class="check">${check}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── SLIDER LOGIC ──────────────────────────────────────────────────────────────
+function updateSlider(slider, label, value, unit) {
+  const min = parseFloat(slider.min), max = parseFloat(slider.max);
+  const pct = ((value - min) / (max - min)) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+  label.textContent = value.toFixed(value < 1 ? 2 : 1) + ' ' + unit;
+}
+
+const slBlueMass = document.getElementById('sl-blue-mass');
+const slRedMass  = document.getElementById('sl-red-mass');
+const slImpulse  = document.getElementById('sl-impulse');
+
+slBlueMass.addEventListener('input', () => {
+  blueMass = parseFloat(slBlueMass.value);
+  updateSlider(slBlueMass, document.getElementById('lbl-blue-mass'), blueMass, 'kg');
+  if (state !== 'exploding') { resetCarts(); }
+});
+slRedMass.addEventListener('input', () => {
+  redMass = parseFloat(slRedMass.value);
+  updateSlider(slRedMass, document.getElementById('lbl-red-mass'), redMass, 'kg');
+  if (state !== 'exploding') { resetCarts(); }
+});
+slImpulse.addEventListener('input', () => {
+  impulse = parseFloat(slImpulse.value);
+  updateSlider(slImpulse, document.getElementById('lbl-impulse'), impulse, 'kg·m/s');
+  if (state !== 'exploding') { resetCarts(); }
+});
+
+// ── BUTTONS ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-explode').addEventListener('click', doExplode);
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  document.getElementById('btn-explode').disabled = false;
+  resetCarts();
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  trials = [];
+  trialCount = 0;
+  renderTable();
+});
+
+// Friction toggle
+const frToggle = document.getElementById('friction-toggle');
+frToggle.addEventListener('click', () => {
+  friction = !friction;
+  frToggle.classList.toggle('on', friction);
+  if (state !== 'exploding') resetCarts();
+});
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+updateSlider(slBlueMass, document.getElementById('lbl-blue-mass'), blueMass, 'kg');
+updateSlider(slRedMass,  document.getElementById('lbl-red-mass'),  redMass,  'kg');
+updateSlider(slImpulse,  document.getElementById('lbl-impulse'),   impulse,  'kg·m/s');
+resetCarts();
+</script>
+</body>
+</html>
