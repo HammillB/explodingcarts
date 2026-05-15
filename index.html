@@ -557,6 +557,7 @@ const MASS_MIN = 0.1, MASS_MAX = 5.0;
 const SPRING_MIN_DRAW = 14; // minimum px width when carts touch (compressed spring)
 const TRACK_BOTTOM_PAD = 10; // fixed distance from canvas bottom to track
 const TRACK_TOP_PAD = 50;    // room above carts for velocity labels
+const SIM_DURATION = 4;      // seconds after explosion before simulation stops
 const MU = 0.07; // friction coefficient (deceleration in m/s per second when on)
 
 function maxCartScale() {
@@ -751,12 +752,22 @@ function drawArrow(cx, y, vel, color) {
 // ── ANIMATION LOOP ────────────────────────────────────────────────────────────
 let lastTs = null;
 
+function finishSimulation() {
+  if (state !== 'exploding') return;
+  state = 'done';
+  recordTrial();
+  updateReadouts(true);
+  drawScene();
+}
+
 function animate(ts) {
   if (!animStart) animStart = ts;
   const dt = lastTs ? (ts - lastTs) / 1000 : 0;
   lastTs = ts;
 
   if (state === 'exploding') {
+    const elapsed = (ts - animStart) / 1000;
+
     // Apply friction if enabled
     if (friction) {
       const fric = MU * 9.8; // deceleration m/s²
@@ -778,15 +789,14 @@ function animate(ts) {
     const offscreen = (blueX + blueW < 0) && (redX + redW > cw);
     const stopped = friction && Math.abs(blueV) < 0.0001 && Math.abs(redV) < 0.0001;
 
-    if (offscreen || stopped) {
-      state = 'done';
-      recordTrial();
+    if (elapsed >= SIM_DURATION || offscreen || stopped) {
+      finishSimulation();
+      return;
     }
 
     updateReadouts(true);
     drawScene(ts);
-
-    if (state === 'exploding') requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
   }
 }
 
@@ -802,6 +812,7 @@ function doExplode() {
   lastRedV  = redV;
   state = 'exploding';
   explodedOnce = true;
+  animStart = null;
   lastTs = null;
   requestAnimationFrame(animate);
   document.getElementById('btn-explode').disabled = true;
