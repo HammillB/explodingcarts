@@ -543,16 +543,46 @@ let trialCount = 0;
 let lastBlueV = 0, lastRedV = 0; // post-explosion for data table
 let explodedOnce = false;
 
-const CART_W = 56, CART_H = 28;
-const WHEEL_R = 7;
+const CART_W_BASE = 56, CART_H_BASE = 28, WHEEL_R_BASE = 7;
+const MASS_MIN = 0.1, MASS_MAX = 5.0;
 const SPRING_MIN_DRAW = 14; // minimum px width when carts touch (compressed spring)
-const TRACK_Y_FRAC = 0.72;
+const TRACK_BOTTOM_PAD = 10; // fixed distance from canvas bottom to track
+const TRACK_TOP_PAD = 50;    // room above carts for velocity labels
 const MU = 0.07; // friction coefficient (deceleration in m/s per second when on)
+
+function maxCartScale() {
+  const ch = CH();
+  const available = ch - TRACK_BOTTOM_PAD - TRACK_TOP_PAD;
+  return available / (CART_H_BASE + 2 * WHEEL_R_BASE);
+}
+
+function cartScale(mass) {
+  let s;
+  if (mass <= 1) s = 0.5 + (mass - MASS_MIN) / (1 - MASS_MIN) * 0.5;
+  else s = 1 + (mass - 1) / (MASS_MAX - 1);
+  return Math.min(s, maxCartScale());
+}
+
+function cartSize(mass) {
+  const s = cartScale(mass);
+  return { w: CART_W_BASE * s, h: CART_H_BASE * s, wheelR: WHEEL_R_BASE * s, scale: s };
+}
+
+function trackSurfaceY(ch) {
+  return ch - TRACK_BOTTOM_PAD;
+}
+
+function cartTopY(trackSurface, sz) {
+  // Wheels are drawn below the body; bottom of wheel = body bottom + 2×radius
+  return trackSurface - sz.h - 2 * sz.wheelR;
+}
 
 function resetCarts() {
   const cw = CW();
-  blueX = (cw - 2 * CART_W) / 2;
-  redX  = blueX + CART_W;
+  const blueW = cartSize(blueMass).w;
+  const redW  = cartSize(redMass).w;
+  blueX = (cw - blueW - redW) / 2;
+  redX  = blueX + blueW;
   blueV = 0; redV = 0;
   state = 'idle';
   animStart = null;
@@ -566,39 +596,45 @@ function drawScene(ts) {
   const cw = CW(), ch = CH();
   ctx.clearRect(0, 0, cw, ch);
 
-  const trackY = ch * TRACK_Y_FRAC;
+  const blueSz = cartSize(blueMass);
+  const redSz  = cartSize(redMass);
+  const trackSurface = trackSurfaceY(ch);
+  const blueTop = cartTopY(trackSurface, blueSz);
+  const redTop  = cartTopY(trackSurface, redSz);
 
-  // Track
+  // Track (fixed near bottom of canvas)
   ctx.fillStyle = '#1a2040';
-  ctx.fillRect(0, trackY + CART_H - 1, cw, 2);
+  ctx.fillRect(0, trackSurface - 1, cw, 2);
   ctx.fillStyle = '#2a3050';
-  ctx.fillRect(0, trackY + CART_H + 1, cw, 4);
+  ctx.fillRect(0, trackSurface + 1, cw, 4);
 
   // Tick marks
   ctx.fillStyle = '#2a3050';
   for (let x = 40; x < cw - 40; x += 40) {
-    ctx.fillRect(x, trackY + CART_H + 5, 1, 6);
+    ctx.fillRect(x, trackSurface + 5, 1, 6);
   }
 
-  drawCart(blueX, trackY, '#4a9eff', '#1a3a6b');
-  drawCart(redX,  trackY, '#ff5a5a', '#6b1a1a');
+  drawCart(blueX, blueTop, '#4a9eff', '#1a3a6b', blueMass, trackSurface);
+  drawCart(redX,  redTop,  '#ff5a5a', '#6b1a1a', redMass, trackSurface);
 
   // Spring between carts (idle only; compressed coil when carts touch)
-  if (state === 'idle') drawSpring(blueX, redX, trackY);
+  const springY = (blueTop + blueSz.h / 2 + redTop + redSz.h / 2) / 2;
+  if (state === 'idle') drawSpring(blueX, redX, springY, blueSz.w, redSz.w);
 
   // Velocity labels and arrows above carts (follow cart position each frame)
   if (state !== 'idle') {
-    const blueCx = blueX + CART_W / 2;
-    const redCx  = redX  + CART_W / 2;
-    drawVelocityLabel(blueCx, trackY, blueV, '#4a9eff');
-    drawVelocityLabel(redCx,  trackY, redV,  '#ff5a5a');
-    drawArrow(blueCx, trackY - 38, blueV, '#4a9eff');
-    drawArrow(redCx,  trackY - 38, redV,  '#ff5a5a');
+    const blueCx = blueX + blueSz.w / 2;
+    const redCx  = redX  + redSz.w / 2;
+    const labelY = Math.min(blueTop, redTop);
+    drawVelocityLabel(blueCx, labelY, blueV, '#4a9eff');
+    drawVelocityLabel(redCx,  labelY, redV,  '#ff5a5a');
+    drawArrow(blueCx, labelY - 38, blueV, '#4a9eff');
+    drawArrow(redCx,  labelY - 38, redV,  '#ff5a5a');
   }
 }
 
-function drawSpring(blueX, redX, trackY) {
-  const springX1 = blueX + CART_W;
+function drawSpring(blueX, redX, springY, blueW, redW) {
+  const springX1 = blueX + blueW;
   const springX2 = redX;
   const gap = springX2 - springX1;
   let drawX1, drawX2;
@@ -610,7 +646,6 @@ function drawSpring(blueX, redX, trackY) {
     drawX1 = springX1;
     drawX2 = springX2;
   }
-  const springY = trackY + CART_H / 2;
   const coils = 7;
   const amp = 4;
   ctx.beginPath();
@@ -636,19 +671,25 @@ function drawVelocityLabel(cx, cartTopY, vel, color) {
   ctx.fillText(speed !== '0.00' ? speed + ' m/s' : '0 m/s', cx, cartTopY - 10);
 }
 
-function drawCart(x, trackY, fill, dark) {
+function drawCart(x, trackY, fill, dark, mass, trackSurface) {
   const y = trackY;
-  const r = 5;
+  const { w, h, wheelR, scale } = cartSize(mass);
+  const wheelCy = trackSurface - wheelR;
+  const r = 5 * scale;
+  const pad = 3 * scale;
+  const stripeH = 7 * scale;
+  const wheelInset = 10 * scale;
+  const hubR = 2.5 * scale;
 
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
-  ctx.ellipse(x + CART_W / 2, y + CART_H + WHEEL_R + 2, CART_W * 0.4, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + w / 2, wheelCy + 2, w * 0.4, 4 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Body
   ctx.beginPath();
-  ctx.roundRect(x, y, CART_W, CART_H, r);
+  ctx.roundRect(x, y, w, h, r);
   ctx.fillStyle = dark;
   ctx.fill();
   ctx.strokeStyle = fill;
@@ -657,14 +698,14 @@ function drawCart(x, trackY, fill, dark) {
 
   // Top stripe
   ctx.beginPath();
-  ctx.roundRect(x + 3, y + 3, CART_W - 6, 7, 2);
+  ctx.roundRect(x + pad, y + pad, w - pad * 2, stripeH, 2 * scale);
   ctx.fillStyle = fill + '55';
   ctx.fill();
 
-  // Wheels
-  for (const wx of [x + 10, x + CART_W - 10]) {
+  // Wheels (bottom of wheel on trackSurface)
+  for (const wx of [x + wheelInset, x + w - wheelInset]) {
     ctx.beginPath();
-    ctx.arc(wx, y + CART_H + WHEEL_R, WHEEL_R, 0, Math.PI * 2);
+    ctx.arc(wx, wheelCy, wheelR, 0, Math.PI * 2);
     ctx.fillStyle = '#333';
     ctx.fill();
     ctx.strokeStyle = fill;
@@ -672,7 +713,7 @@ function drawCart(x, trackY, fill, dark) {
     ctx.stroke();
     // Hub
     ctx.beginPath();
-    ctx.arc(wx, y + CART_H + WHEEL_R, 2.5, 0, Math.PI * 2);
+    ctx.arc(wx, wheelCy, hubR, 0, Math.PI * 2);
     ctx.fillStyle = fill;
     ctx.fill();
   }
@@ -723,7 +764,9 @@ function animate(ts) {
     redX  += redV * dt * scale;
 
     const cw = CW();
-    const offscreen = (blueX + CART_W < 0) && (redX > cw);
+    const blueW = cartSize(blueMass).w;
+    const redW  = cartSize(redMass).w;
+    const offscreen = (blueX + blueW < 0) && (redX + redW > cw);
     const stopped = friction && Math.abs(blueV) < 0.0001 && Math.abs(redV) < 0.0001;
 
     if (offscreen || stopped) {
