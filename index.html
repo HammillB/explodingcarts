@@ -22,6 +22,7 @@
     --track: #2a3050;
     --track-surface: #1a2040;
     --spring: #ffd166;
+    --font-numbers: 'DM Sans', system-ui, sans-serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -118,8 +119,10 @@
     margin-top: 3px;
   }
   .readout-row .val {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.82rem;
+    font-family: var(--font-numbers);
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     color: var(--text);
   }
 
@@ -222,8 +225,10 @@
   .impulse-group input[type=range]::-webkit-slider-thumb { background: var(--gold); }
 
   .slider-val {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.85rem;
+    font-family: var(--font-numbers);
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     min-width: 52px;
     text-align: right;
   }
@@ -367,8 +372,10 @@
   tbody td {
     padding: 7px 10px;
     text-align: right;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.78rem;
+    font-family: var(--font-numbers);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
   tbody td:first-child { text-align: center; color: var(--muted); }
 
@@ -400,9 +407,11 @@
     margin-top: 12px;
   }
   .eq-hint .eq {
-    font-family: 'Space Mono', monospace;
+    font-family: var(--font-numbers);
     color: var(--text);
     font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
 
   /* flash animation for new row */
@@ -664,7 +673,7 @@ function drawSpring(blueX, redX, springY, blueW, redW) {
 
 function drawVelocityLabel(cx, cartTopY, vel, color) {
   ctx.fillStyle = color;
-  ctx.font = 'bold 20px Space Mono, monospace';
+  ctx.font = '600 20px "DM Sans", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   const speed = Math.abs(vel).toFixed(2);
