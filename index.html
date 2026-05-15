@@ -432,12 +432,9 @@
         <div class="cart-label">🔵 Blue Cart</div>
         <div class="readout-row"><span>Mass</span><span class="val" id="rd-blue-mass">—</span></div>
         <div class="readout-row"><span>Velocity</span><span class="val" id="rd-blue-vel">—</span></div>
-        <div class="readout-row"><span>Momentum</span><span class="val" id="rd-blue-p">—</span></div>
       </div>
 
       <div class="momentum-center">
-        <div class="label">Total p</div>
-        <div class="total-p pending" id="rd-total-p">0.00</div>
         <div class="conservation-badge pending" id="rd-badge">BEFORE</div>
       </div>
 
@@ -445,7 +442,6 @@
         <div class="cart-label">🔴 Red Cart</div>
         <div class="readout-row"><span>Mass</span><span class="val" id="rd-red-mass">—</span></div>
         <div class="readout-row"><span>Velocity</span><span class="val" id="rd-red-vel">—</span></div>
-        <div class="readout-row"><span>Momentum</span><span class="val" id="rd-red-p">—</span></div>
       </div>
     </div>
   </div>
@@ -509,14 +505,10 @@
             <th>J (kg·m/s)</th>
             <th>v₁ (m/s)</th>
             <th>v₂ (m/s)</th>
-            <th>p₁ (kg·m/s)</th>
-            <th>p₂ (kg·m/s)</th>
-            <th>p_total</th>
-            <th>✓</th>
           </tr>
         </thead>
         <tbody id="data-tbody">
-          <tr><td colspan="10" class="empty-state">Run a trial to record data.</td></tr>
+          <tr><td colspan="6" class="empty-state">Run a trial to record data.</td></tr>
         </tbody>
       </table>
     </div>
@@ -771,29 +763,15 @@ function updateReadouts(running) {
   if (!explodedOnce) {
     document.getElementById('rd-blue-vel').textContent = '0.00 m/s';
     document.getElementById('rd-red-vel').textContent  = '0.00 m/s';
-    document.getElementById('rd-blue-p').textContent   = '0.00';
-    document.getElementById('rd-red-p').textContent    = '0.00';
-    document.getElementById('rd-total-p').textContent  = '0.00';
-    document.getElementById('rd-total-p').className    = 'total-p pending';
     document.getElementById('rd-badge').textContent    = 'BEFORE';
     document.getElementById('rd-badge').className      = 'conservation-badge pending';
     return;
   }
 
-  const p1 = blueMass * blueV;
-  const p2 = redMass  * redV;
-  const pt = p1 + p2;
-
   document.getElementById('rd-blue-vel').textContent = blueV.toFixed(3) + ' m/s';
   document.getElementById('rd-red-vel').textContent  = redV.toFixed(3)  + ' m/s';
-  document.getElementById('rd-blue-p').textContent   = p1.toFixed(3) + ' kg·m/s';
-  document.getElementById('rd-red-p').textContent    = p2.toFixed(3) + ' kg·m/s';
-  document.getElementById('rd-total-p').textContent  = pt.toFixed(3) + ' kg·m/s';
-
-  const conserved = Math.abs(pt) < 0.001;
-  document.getElementById('rd-total-p').className = 'total-p ' + (conserved ? 'conserved' : 'not-conserved');
-  document.getElementById('rd-badge').textContent   = conserved ? 'CONSERVED ✓' : 'Σp = ' + pt.toFixed(3);
-  document.getElementById('rd-badge').className     = 'conservation-badge ' + (conserved ? 'conserved' : 'pending');
+  document.getElementById('rd-badge').textContent    = 'AFTER';
+  document.getElementById('rd-badge').className      = 'conservation-badge conserved';
 }
 
 // ── DATA TABLE ────────────────────────────────────────────────────────────────
@@ -802,20 +780,17 @@ let trials = [];
 function recordTrial() {
   trialCount++;
   const v1 = lastBlueV, v2 = lastRedV;
-  const p1 = blueMass * v1, p2 = redMass * v2;
-  const pt = p1 + p2;
-  trials.push({ n: trialCount, m1: blueMass, m2: redMass, J: impulse, v1, v2, p1, p2, pt });
+  trials.push({ n: trialCount, m1: blueMass, m2: redMass, J: impulse, v1, v2 });
   renderTable();
 }
 
 function renderTable() {
   const tbody = document.getElementById('data-tbody');
   if (trials.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Run a trial to record data.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Run a trial to record data.</td></tr>';
     return;
   }
   tbody.innerHTML = trials.map((t, i) => {
-    const check = Math.abs(t.pt) < 0.001 ? '✓' : '~';
     const isNew  = i === trials.length - 1 ? 'row-new' : '';
     return `<tr class="${isNew}">
       <td>${t.n}</td>
@@ -824,10 +799,6 @@ function renderTable() {
       <td class="gold-val">${t.J.toFixed(2)}</td>
       <td class="blue-val">${t.v1.toFixed(3)}</td>
       <td class="red-val">${t.v2.toFixed(3)}</td>
-      <td class="blue-val">${t.p1.toFixed(3)}</td>
-      <td class="red-val">${t.p2.toFixed(3)}</td>
-      <td class="${Math.abs(t.pt)<0.001?'green-val':'gold-val'}">${t.pt.toFixed(4)}</td>
-      <td class="check">${check}</td>
     </tr>`;
   }).join('');
 }
